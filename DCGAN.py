@@ -99,15 +99,17 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
-
+        
 
 class _netG(nn.Module):
     def __init__(self, ngpu):
         super(_netG, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
+#             nn.BatchNorm2d(ngf * 8),
+#             nn.ReLU(True),
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
@@ -127,12 +129,17 @@ class _netG(nn.Module):
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
+        self.proj = nn.Sequential(
+            nn.Linear(nz, ngf * 8 * 4 * 4, bias=True),
+        )
 
     def forward(self, input):
+#         x = self.proj(input)
+#         x = x.view(-1, 4, 4, ngf * 8)
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
-            output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
+            output = nn.parallel.data_parallel(self.main, x, range(self.ngpu))
         else:
-            output = self.main(input)
+            output = self.main(x)
         return output
 
 
