@@ -37,7 +37,7 @@ class DCGAN(object):
         self.image_size = image_size
         self.sample_size = sample_size
         self.image_shape = [image_size, image_size, 3]
-
+    
         self.z_dim = z_dim
 
         self.gf_dim = gf_dim
@@ -47,7 +47,11 @@ class DCGAN(object):
         self.dfc_dim = dfc_dim
 
         self.lam = lam
-
+        
+        ###
+        self.LAMBDA = 10
+        ###
+        
         self.c_dim = 3
 
         # batch normalization : deals with poor initialization helps gradient flow
@@ -97,7 +101,18 @@ class DCGAN(object):
         self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
-
+        
+        ###
+        alpha = tf.random_uniform(shape=[batch_size,1], minval=0., maxval=1.)
+        
+        differences = self.G - self.images
+        interpolates = self.images + (alpha * differences)
+        gradients = tf.gradients(self.discriminator(interpolates), [interpolates])[0]
+        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
+        gradient_penalty = tf.reduce_mean((slopes - 1.)**2)
+        self.d_loss += self.LAMBDA * gradient_penalty
+        ###
+        
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
 
